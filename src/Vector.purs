@@ -7,6 +7,16 @@ import Radians hiding (scale)
 
 data Vector = Vector { x :: Number, y :: Number, z :: Number }
 
+instance eqVector :: Eq Vector where
+  eq (Vector u) (Vector v) = u.x == v.x
+                          && u.y == v.y
+                          && u.z == v.z
+instance showVector :: Show Vector where
+  show (Vector v) = "Vector { x: " ++ show v.x
+                        ++ ", y: " ++ show v.y
+                        ++ ", z: " ++ show v.z
+                        ++ " }"
+
 instance semigroupVector :: Semigroup Vector where
   append (Vector u) (Vector v) =
     Vector { x: u.x + v.x
