@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<meta charset='utf-8'>
+<style>
+  svg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    stroke-width: 0.01;
+  }
+  #dots > circle {
+    fill: black;
+    stroke: black;
+  }
+  #world {
+    fill: transparent;
+    stroke: #ccc;
+  }
+  #world:hover { cursor: grab; }
+</style>
+<svg viewBox='-1.1 -1.1 2.2 2.2' id='petersen-graph'>
+<circle id='world' cx='0' cy='0' r='1'></circle>
+<g id='dots'></g>
+</svg>
+<script src='petersen-graph.js'></script>

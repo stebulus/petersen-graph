@@ -1,0 +1,23 @@
+{
+  "name": "petersen-graph",
+  "version": "1.0.0",
+  "moduleType": [
+    "node"
+  ],
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "output"
+  ],
+  "dependencies": {
+    "purescript-console": "~0.1.1",
+    "purescript-math": "~0.2.0",
+    "purescript-arrays": "~0.4.4",
+    "purescript-integers": "~0.2.1",
+    "purescript-dom": "~0.2.17",
+    "purescript-nullable": "~0.2.1",
+    "purescript-lists": "~0.7.9"
+  },
+  "devDependencies": {}
+}
