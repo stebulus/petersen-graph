@@ -13,6 +13,7 @@ import qualified Vector as V
 newtype AQuaternion = A Quaternion
 newtype UQuaternion = U UnitQuaternion
 newtype VVector = V V.Vector
+newtype UVector = UV V.UnitVector
 
 instance arbitraryQuaternion :: Arbitrary AQuaternion where
   arbitrary = do r <- arbitrary
@@ -23,6 +24,15 @@ instance arbitraryQuaternion :: Arbitrary AQuaternion where
 instance arbitraryUnitQuaternion :: Arbitrary UQuaternion where
   arbitrary = do (A q) <- arbitrary
                  return $ U $ normalize q
+
+instance arbitraryVector :: Arbitrary VVector where
+  arbitrary = do x <- arbitrary
+                 y <- arbitrary
+                 z <- arbitrary
+                 return $ V $ V.Vector { x: x, y: y, z: z }
+instance arbitraryUnitVector :: Arbitrary UVector where
+  arbitrary = do (V v) <- arbitrary
+                 return $ UV $ V.normalize v
 
 (~=) :: Quaternion -> Quaternion -> Result
 (~=) qa@(Quaternion a) qb@(Quaternion b) =
@@ -65,3 +75,7 @@ main = do
                                     ~= scale 2.0 (fromVector (vectorPart q))
   -- DivisionRing laws
   quickCheck \(A q)             -> (one/q)*q ~= one
+  -- rotation
+  quickCheck \(U u) (V v)       -> V.norm v =~= V.norm (rotate u v)
+  quickCheck \(UV u) (UV v)     -> rotate (rotater u v) (V.forgetUnit u)
+                                     === V.forgetUnit v
