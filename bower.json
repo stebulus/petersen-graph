@@ -19,5 +19,7 @@
     "purescript-nullable": "~0.2.1",
     "purescript-lists": "~0.7.9"
   },
-  "devDependencies": {}
+  "devDependencies": {
+    "purescript-quickcheck": "~0.12.2"
+  }
 }
