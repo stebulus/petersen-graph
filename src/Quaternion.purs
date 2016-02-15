@@ -81,7 +81,7 @@ rotate (UnitQuaternion u) p = vectorPart (u * (fromVector p) * (conjugate u))
 
 rotater :: V.UnitVector -> V.UnitVector -> UnitQuaternion
 rotater (V.UnitVector from) (V.UnitVector to) =
-  normalize (one - (fromVector from)*(fromVector to))
+  normalize (one - (fromVector to)*(fromVector from))
 
 fromVector :: V.Vector -> Quaternion
 fromVector (V.Vector p) = Quaternion { r: 0.0, i: p.x, j: p.y, k: p.z }

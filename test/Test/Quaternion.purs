@@ -10,6 +10,7 @@ import Test.QuickCheck.Data.ApproxNumber ((=~=))
 import Quaternion
 import qualified Vector as V
 import Test.Vector (VVector(..), UVector(..))
+import qualified Test.Vector as TV
 
 newtype AQuaternion = A Quaternion
 newtype UQuaternion = U UnitQuaternion
@@ -68,4 +69,4 @@ main = do
   -- rotation
   quickCheck \(U u) (V v)       -> V.norm v =~= V.norm (rotate u v)
   quickCheck \(UV u) (UV v)     -> rotate (rotater u v) (V.forgetUnit u)
-                                     === V.forgetUnit v
+                                     TV.~= V.forgetUnit v
