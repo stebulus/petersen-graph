@@ -40,19 +40,19 @@ main = do
 
 vertices :: List Vector
 vertices = bot ++ top
-  where u = fromCylindrical { rho: faceCircumradius
+  where fifth = axisAngle unitZ (Radians (2.0 * pi/5.0))
+        top = take 5 $ iterate (rotate fifth) u
+        bot = take 5 $ iterate (rotate fifth) v
+        u = fromCylindrical { rho: faceCircumradius
                             , phi: Radians (-pi/2.0)
                             , z: inradius
                             }
-        v = rotate (q <> q) u
-        top = take 5 $ iterate (rotate fifth) u
-        bot = take 5 $ iterate (rotate fifth) v
         inradius = sqrt $ (5.0 + 2.0*(sqrt 5.0))/15.0
         faceCircumradius = sqrt (1.0 - inradius*inradius)
-        fifth = axisAngle unitZ (Radians (2.0 * pi/5.0))
         opp1 = rotate (fifth <> fifth) u
         opp2 = rotate fifth opp1
         q = rotater (normalize u) (normalize (opp1 ++ opp2))
+        v = rotate (q <> q) u
 
 type Screen = { u :: Number, v :: Number }
 
