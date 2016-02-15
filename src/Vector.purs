@@ -1,6 +1,7 @@
 module Vector where
 
 import Data.Monoid (Monoid)
+import Math (sqrt)
 import Prelude
 
 import Radians hiding (scale)
@@ -44,8 +45,11 @@ unitZ = UnitVector (Vector { x: 0.0, y: 0.0, z: 1.0 })
 dot :: Vector -> Vector -> Number
 dot (Vector u) (Vector v) = u.x*v.x + u.y*v.y + u.z*v.z
 
+normsq :: Vector -> Number
+normsq v = v `dot` v
+
 norm :: Vector -> Number
-norm v = v `dot` v
+norm = sqrt <<< normsq
 
 normalize :: Vector -> UnitVector
 normalize v = UnitVector $ scale (1.0/norm v) v
