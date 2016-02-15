@@ -4,5 +4,8 @@ import Test.QuickCheck
 import Prelude
 
 import qualified Test.Quaternion as Q
+import qualified Test.Vector as V
 
-main = Q.main
+main = do
+  Q.main
+  V.main

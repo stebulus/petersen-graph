@@ -9,11 +9,10 @@ import Test.QuickCheck.Data.ApproxNumber ((=~=))
 
 import Quaternion
 import qualified Vector as V
+import Test.Vector (VVector(..), UVector(..))
 
 newtype AQuaternion = A Quaternion
 newtype UQuaternion = U UnitQuaternion
-newtype VVector = V V.Vector
-newtype UVector = UV V.UnitVector
 
 instance arbitraryQuaternion :: Arbitrary AQuaternion where
   arbitrary = do r <- arbitrary
@@ -24,15 +23,6 @@ instance arbitraryQuaternion :: Arbitrary AQuaternion where
 instance arbitraryUnitQuaternion :: Arbitrary UQuaternion where
   arbitrary = do (A q) <- arbitrary
                  return $ U $ normalize q
-
-instance arbitraryVector :: Arbitrary VVector where
-  arbitrary = do x <- arbitrary
-                 y <- arbitrary
-                 z <- arbitrary
-                 return $ V $ V.Vector { x: x, y: y, z: z }
-instance arbitraryUnitVector :: Arbitrary UVector where
-  arbitrary = do (V v) <- arbitrary
-                 return $ UV $ V.normalize v
 
 (~=) :: Quaternion -> Quaternion -> Result
 (~=) qa@(Quaternion a) qb@(Quaternion b) =
