@@ -1,7 +1,7 @@
 module Quaternion where
 
 import Data.Monoid (Monoid)
-import Math (pow)
+import Math (pow, sqrt)
 import Prelude
 
 import qualified Radians as R
@@ -12,6 +12,16 @@ data Quaternion = Quaternion { r :: Number
                              , j :: Number
                              , k :: Number
                              }
+instance eqQuaternion :: Eq Quaternion where
+  eq (Quaternion a) (Quaternion b) =
+    a.r == b.r && a.i == b.i && a.j == b.j && a.k == b.k
+instance showQuaternion :: Show Quaternion where
+  show (Quaternion q) = "Quaternion { r: " ++ show q.r
+                               ++ " , i: " ++ show q.i
+                               ++ " , j: " ++ show q.j
+                               ++ " , k: " ++ show q.k
+                               ++ " }"
+
 instance semiringQuarternion :: Semiring Quaternion where
   add (Quaternion a) (Quaternion b) =
     Quaternion { r: a.r + b.r
@@ -35,7 +45,7 @@ instance ringQuaternion :: Ring Quaternion where
                , k: a.k - b.k
                }
 instance modulosemiringQuaternion :: ModuloSemiring Quaternion where
-  div n d = scale (1.0 / pow (norm d) 2.0) (n * conjugate d)
+  div n d = scale (1.0/normsq d) (n * conjugate d)
   mod n d = zero
 instance divisionringQuaternion :: DivisionRing Quaternion
 
@@ -50,8 +60,11 @@ scale s (Quaternion q) =
 conjugate :: Quaternion -> Quaternion
 conjugate (Quaternion q) = Quaternion { r: q.r, i: -q.i, j: -q.j, k: -q.k }
 
+normsq :: Quaternion -> Number
+normsq (Quaternion q) = q.r*q.r + q.i*q.i + q.j*q.j + q.k*q.k
+
 norm :: Quaternion -> Number
-norm (Quaternion q) = q.r*q.r + q.i*q.i + q.j*q.j + q.k*q.k
+norm = sqrt <<< normsq
 
 newtype UnitQuaternion = UnitQuaternion Quaternion
 
