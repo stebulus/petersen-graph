@@ -6,6 +6,7 @@ import Data.Foldable (for_, intercalate)
 import Data.List.Lazy (fromList, iterate, take)
 import Data.Maybe (Maybe(Just,Nothing))
 import Data.Nullable (Nullable(), toMaybe, toNullable)
+import Data.Traversable (for)
 import DOM (DOM())
 import DOM.HTML (window)
 import DOM.HTML.Types (htmlDocumentToDocument, htmlDocumentToNonElementParentNode)
@@ -14,13 +15,16 @@ import DOM.Node.Document (createElementNS)
 import DOM.Node.Element (setAttribute)
 import DOM.Node.Node (appendChild)
 import DOM.Node.NonElementParentNode (getElementById)
-import DOM.Node.Types (ElementId(ElementId), elementToNode)
+import DOM.Node.Types (Element(), ElementId(ElementId), elementToNode)
 import Math (pi, sqrt)
 import Prelude
 
 import Quaternion (axisAngle, oneU, rotate, rotater, UnitQuaternion())
 import Radians hiding (scale)
 import Vector
+
+type Model = UnitQuaternion
+type View = forall e. Model -> Eff (dom :: DOM | e) Unit
 
 main :: Eff (dom :: DOM, console :: CONSOLE) Unit
 main = do
@@ -29,13 +33,19 @@ main = do
     (htmlDocumentToNonElementParentNode doc)
   case mg of
     Nothing -> log "error: #edges not found"
-    Just g -> for_ polylines \pts -> do
+    Just g -> do
+      views <- for polylines \pts -> do
         elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
-        setAttribute "points"
-          (intercalate "," $ map show $
-            pts >>= \pt -> let s = toScreen pt in [s.u, s.v])
-          elem
         appendChild (elementToNode elem) (elementToNode g)
+        return (polylineView elem pts)
+      for_ views \v -> v oneU
+
+polylineView :: Element -> Array Vector -> View
+polylineView elem pts = \u ->
+  setAttribute "points"
+    (intercalate "," $ map show $
+      pts >>= \pt -> let s = toScreen (rotate u pt) in [s.u, s.v])
+    elem
 
 polylines :: Array (Array Vector)
 polylines = flip map rots \rot -> map (rotate rot) polyline
