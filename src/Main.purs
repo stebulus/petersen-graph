@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE(), log)
+import Control.Monad.Eff.Exception (catchException, error, EXCEPTION(), message, throwException)
 import Data.Functor.Contravariant (cmap, Contravariant)
 import Data.Foldable (for_, intercalate, mconcat)
 import Data.List.Lazy (fromList, iterate, take)
@@ -39,19 +40,24 @@ instance monoidView :: Monoid (View e a) where
 runView :: forall e a. View e a -> a -> Eff (dom :: DOM | e) Unit
 runView (View v) = v
 
-main :: Eff (dom :: DOM, console :: CONSOLE) Unit
-main = do
+mainM :: Eff (dom :: DOM, console :: CONSOLE, err :: EXCEPTION) Unit
+mainM = do
   doc <- window >>= document
-  mg <- toMaybe <$> getElementById (ElementId "edges")
-    (htmlDocumentToNonElementParentNode doc)
-  case mg of
-    Nothing -> log "error: #edges not found"
-    Just g -> do
-      view <- mconcat <$> for polylines \pts -> do
-        elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
-        appendChild (elementToNode elem) (elementToNode g)
-        return (rotatedPolyline elem pts)
-      runView view oneU
+  let doc' = htmlDocumentToNonElementParentNode doc
+  g <- mustGetElementById (ElementId "edges") doc'
+  view <- mconcat <$> for polylines \pts -> do
+    elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
+    appendChild (elementToNode elem) (elementToNode g)
+    return (rotatedPolyline elem pts)
+  runView view oneU
+
+mustGetElementById :: forall e. ElementId -> NonElementParentNode
+                   -> Eff (dom :: DOM, err :: EXCEPTION | e) Element
+mustGetElementById elemid@(ElementId idstr) parent = do
+  melem <- toMaybe <$> getElementById elemid parent
+  case melem of
+    Nothing -> throwException (error ("#" ++ idstr ++ " not found"))
+    Just elem -> return elem
 
 rotatedPolyline :: forall e. Element -> Array Vector -> View e UnitQuaternion
 rotatedPolyline elem pts =
@@ -96,3 +102,12 @@ toScreen (Vector pt) = { u: t * pt.x
 
 svgns :: Nullable String
 svgns = toNullable (Just "http://www.w3.org/2000/svg")
+
+main :: Eff (dom :: DOM, console :: CONSOLE) Unit
+main = void $ logErrors mainM
+
+logErrors :: forall e a.  Eff (err :: EXCEPTION, console :: CONSOLE | e) a
+          -> Eff (console :: CONSOLE | e) (Maybe a)
+logErrors m = catchException handle (Just <$> m)
+    where handle err = do log $ message err
+                          return Nothing
