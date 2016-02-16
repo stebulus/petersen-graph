@@ -68,6 +68,9 @@ norm = sqrt <<< normsq
 
 newtype UnitQuaternion = UnitQuaternion Quaternion
 
+oneU :: UnitQuaternion
+oneU = UnitQuaternion one
+
 normalize :: Quaternion -> UnitQuaternion
 normalize q = UnitQuaternion (scale (1.0/norm q) q)
 

@@ -9,9 +9,11 @@
     width: 100%;
     stroke-width: 0.01;
   }
-  #dots > circle {
-    fill: black;
+  #edges > polyline {
+    fill: transparent;
     stroke: black;
+    stroke-linecap: round;
+    stroke-join: round;
   }
   #world {
     fill: transparent;
@@ -20,7 +22,7 @@
   #world:hover { cursor: grab; }
 </style>
 <svg viewBox='-1.1 -1.1 2.2 2.2' id='petersen-graph'>
+<g id='edges'></g>
 <circle id='world' cx='0' cy='0' r='1'></circle>
-<g id='dots'></g>
 </svg>
 <script src='petersen-graph.js'></script>

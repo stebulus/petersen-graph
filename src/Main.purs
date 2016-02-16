@@ -2,9 +2,9 @@ module Main where
 
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE(), log)
-import Data.Foldable (for_)
+import Data.Foldable (for_, intercalate)
 import Data.Lazy (defer)
-import Data.List.Lazy (List(..), iterate, Step(..), take)
+import Data.List.Lazy (fromList, List(..), iterate, Step(..), take)
 import Data.Maybe (Maybe(Just,Nothing))
 import Data.Nullable (Nullable(), toMaybe, toNullable)
 import DOM (DOM())
@@ -19,40 +19,48 @@ import DOM.Node.Types (ElementId(ElementId), elementToNode)
 import Math (pi, sqrt)
 import Prelude
 
-import Quaternion (axisAngle, rotate, rotater)
+import Quaternion (axisAngle, oneU, rotate, rotater, UnitQuaternion())
 import Radians hiding (scale)
 import Vector
 
 main :: Eff (dom :: DOM, console :: CONSOLE) Unit
 main = do
   doc <- window >>= document
-  mg <- toMaybe <$> getElementById (ElementId "dots")
+  mg <- toMaybe <$> getElementById (ElementId "edges")
     (htmlDocumentToNonElementParentNode doc)
   case mg of
-    Nothing -> log "error: #dots not found"
-    Just g -> for_ vertices \pt -> do
-        dot <- createElementNS svgns "circle" (htmlDocumentToDocument doc)
-        let screen = toScreen pt
-        setAttribute "cx" (show screen.u) dot
-        setAttribute "cy" (show screen.v) dot
-        setAttribute "r" "0.02" dot
-        appendChild (elementToNode dot) (elementToNode g)
+    Nothing -> log "error: #edges not found"
+    Just g -> for_ polylines \(Polyline pts) -> do
+        elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
+        setAttribute "points"
+          (intercalate "," $ map show $
+            pts >>= \pt -> let s = toScreen pt in [s.u, s.v])
+          elem
+        appendChild (elementToNode elem) (elementToNode g)
 
-vertices :: List Vector
-vertices = bot ++ top
-  where fifth = axisAngle unitZ (Radians (2.0 * pi/5.0))
-        top = take 5 $ iterate (rotate fifth) u
-        bot = take 5 $ iterate (rotate fifth) v
-        u = fromCylindrical { rho: faceCircumradius
-                            , phi: Radians (-pi/2.0)
-                            , z: inradius
-                            }
+data Polyline = Polyline (Array Vector)
+rotate' :: UnitQuaternion -> Polyline -> Polyline
+rotate' u (Polyline vs) = Polyline (map (rotate u) vs)
+
+polylines :: Array Polyline
+polylines = rotate' <$> rot <*> [polyline]
+  where rot = fromList $ take 5 $ iterate (fifth <>) oneU
+        polyline = Polyline [ rotate fifth top1
+                            , top1
+                            , antitop1
+                            , rotate (fifth <> fifth) antitop1
+                            ]
+        fifth = axisAngle unitZ (Radians (2.0 * pi/5.0))
         inradius = sqrt $ (5.0 + 2.0*(sqrt 5.0))/15.0
         faceCircumradius = sqrt (1.0 - inradius*inradius)
-        opp1 = rotate (fifth <> fifth) u
-        opp2 = rotate fifth opp1
-        q = rotater (normalize u) (normalize (opp1 ++ opp2))
-        v = rotate (q <> q) u
+        top1 = fromCylindrical { rho: faceCircumradius
+                               , phi: Radians (-pi/2.0)
+                               , z: inradius
+                               }
+        oppTop1 = rotate (fifth <> fifth) top1
+        oppTop2 = rotate fifth oppTop1
+        q = rotater (normalize top1) (normalize (oppTop1 ++ oppTop2))
+        antitop1 = rotate (q <> q) top1
 
 type Screen = { u :: Number, v :: Number }
 
