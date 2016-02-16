@@ -30,7 +30,7 @@ main = do
     (htmlDocumentToNonElementParentNode doc)
   case mg of
     Nothing -> log "error: #edges not found"
-    Just g -> for_ polylines \(Polyline pts) -> do
+    Just g -> for_ polylines \pts -> do
         elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
         setAttribute "points"
           (intercalate "," $ map show $
@@ -38,18 +38,14 @@ main = do
           elem
         appendChild (elementToNode elem) (elementToNode g)
 
-data Polyline = Polyline (Array Vector)
-rotate' :: UnitQuaternion -> Polyline -> Polyline
-rotate' u (Polyline vs) = Polyline (map (rotate u) vs)
-
-polylines :: Array Polyline
-polylines = rotate' <$> rot <*> [polyline]
-  where rot = fromList $ take 5 $ iterate (fifth <>) oneU
-        polyline = Polyline [ rotate fifth top1
-                            , top1
-                            , antitop1
-                            , rotate (fifth <> fifth) antitop1
-                            ]
+polylines :: Array (Array Vector)
+polylines = flip map rots \rot -> map (rotate rot) polyline
+  where rots = fromList $ take 5 $ iterate (fifth <>) oneU
+        polyline = [ rotate fifth top1
+                   , top1
+                   , antitop1
+                   , rotate (fifth <> fifth) antitop1
+                   ]
         fifth = axisAngle unitZ (Radians (2.0 * pi/5.0))
         inradius = sqrt $ (5.0 + 2.0*(sqrt 5.0))/15.0
         faceCircumradius = sqrt (1.0 - inradius*inradius)
