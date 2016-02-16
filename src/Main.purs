@@ -2,6 +2,7 @@ module Main where
 
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE(), log)
+import Data.Functor.Contravariant (cmap, Contravariant)
 import Data.Foldable (for_, intercalate)
 import Data.List.Lazy (fromList, iterate, take)
 import Data.Maybe (Maybe(Just,Nothing))
@@ -24,7 +25,12 @@ import Radians hiding (scale)
 import Vector
 
 type Model = UnitQuaternion
-type View = forall e. Model -> Eff (dom :: DOM | e) Unit
+
+data View e a = View (a -> Eff (dom :: DOM | e) Unit)
+instance contravariantView :: Contravariant (View e) where
+  cmap f (View g) = View (g <<< f)
+runView :: forall e a. View e a -> a -> Eff (dom :: DOM | e) Unit
+runView (View v) = v
 
 main :: Eff (dom :: DOM, console :: CONSOLE) Unit
 main = do
@@ -37,15 +43,22 @@ main = do
       views <- for polylines \pts -> do
         elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
         appendChild (elementToNode elem) (elementToNode g)
-        return (polylineView elem pts)
-      for_ views \v -> v oneU
+        return (rotatedPolyline elem pts)
+      for_ views \v -> runView v oneU
 
-polylineView :: Element -> Array Vector -> View
-polylineView elem pts = \u ->
-  setAttribute "points"
-    (intercalate "," $ map show $
-      pts >>= \pt -> let s = toScreen (rotate u pt) in [s.u, s.v])
-    elem
+rotatedPolyline :: forall e. Element -> Array Vector -> View e UnitQuaternion
+rotatedPolyline elem pts =
+  cmap (\u -> map (toScreen <<< rotate u) pts)
+       (polylineView elem)
+
+polylineView :: forall e. Element -> View e (Array Screen)
+polylineView elem =
+  cmap (\pts -> intercalate "," $ map show $ pts >>= \pt -> [pt.u, pt.v])
+       (attributeView elem "points")
+
+attributeView :: forall e. Element -> String -> View e String
+attributeView elem attrname = View \attrvalue ->
+  setAttribute attrname attrvalue elem
 
 polylines :: Array (Array Vector)
 polylines = flip map rots \rot -> map (rotate rot) polyline
