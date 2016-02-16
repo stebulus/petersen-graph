@@ -3,9 +3,10 @@ module Main where
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE(), log)
 import Data.Functor.Contravariant (cmap, Contravariant)
-import Data.Foldable (for_, intercalate)
+import Data.Foldable (for_, intercalate, mconcat)
 import Data.List.Lazy (fromList, iterate, take)
 import Data.Maybe (Maybe(Just,Nothing))
+import Data.Monoid (Monoid)
 import Data.Nullable (Nullable(), toMaybe, toNullable)
 import Data.Traversable (for)
 import DOM (DOM())
@@ -29,6 +30,10 @@ type Model = UnitQuaternion
 data View e a = View (a -> Eff (dom :: DOM | e) Unit)
 instance contravariantView :: Contravariant (View e) where
   cmap f (View g) = View (g <<< f)
+instance semigroupView :: Semigroup (View e a) where
+  append (View f) (View g) = View \x -> f x >>= const (g x)
+instance monoidView :: Monoid (View e a) where
+  mempty = View \x -> return unit
 runView :: forall e a. View e a -> a -> Eff (dom :: DOM | e) Unit
 runView (View v) = v
 
@@ -40,11 +45,11 @@ main = do
   case mg of
     Nothing -> log "error: #edges not found"
     Just g -> do
-      views <- for polylines \pts -> do
+      view <- mconcat <$> for polylines \pts -> do
         elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
         appendChild (elementToNode elem) (elementToNode g)
         return (rotatedPolyline elem pts)
-      for_ views \v -> runView v oneU
+      runView view oneU
 
 rotatedPolyline :: forall e. Element -> Array Vector -> View e UnitQuaternion
 rotatedPolyline elem pts =
