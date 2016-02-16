@@ -11,6 +11,9 @@ import Data.Monoid (Monoid)
 import Data.Nullable (Nullable(), toMaybe, toNullable)
 import Data.Traversable (for)
 import DOM (DOM())
+import DOM.Event.EventTarget (addEventListener, eventListener, removeEventListener)
+import DOM.Event.EventTypes (mousedown, mouseleave, mousemove, mouseup)
+import DOM.Event.Types (EventTarget())
 import DOM.HTML (window)
 import DOM.HTML.Types (htmlDocumentToDocument, htmlDocumentToNonElementParentNode)
 import DOM.HTML.Window (document)
@@ -45,11 +48,14 @@ mainM = do
   doc <- window >>= document
   let doc' = htmlDocumentToNonElementParentNode doc
   g <- mustGetElementById (ElementId "edges") doc'
+  svg <- mustGetElementById (ElementId "petersen-graph") doc'
+  world <- mustGetElementById (ElementId "world") doc'
   view <- mconcat <$> for polylines \pts -> do
     elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
     appendChild (elementToNode elem) (elementToNode g)
     return (rotatedPolyline elem pts)
   runView view oneU
+  installDragHandlers svg (elementToEventTarget world) view oneU
 
 mustGetElementById :: forall e. ElementId -> NonElementParentNode
                    -> Eff (dom :: DOM, err :: EXCEPTION | e) Element
@@ -93,12 +99,37 @@ polylines = flip map rots \rot -> map (rotate rot) polyline
         q = rotater (normalize top1) (normalize (oppTop1 ++ oppTop2))
         antitop1 = rotate (q <> q) top1
 
+installDragHandlers :: forall e. Element -> EventTarget -> View (console :: CONSOLE | e) UnitQuaternion -> UnitQuaternion -> Eff (dom :: DOM, console :: CONSOLE | e) Unit
+installDragHandlers svg target view initrot =
+  let toVector evt = fromScreen (SVG.toScreen svg evt)
+      down = eventListener \evt ->
+               let draggedFrom = toVector evt
+                   drag = eventListener \evt' ->
+                     runView view (rotater draggedFrom (toVector evt') <> initrot)
+                   drop = eventListener \evt' ->
+                     let rot = rotater draggedFrom (toVector evt') <> initrot
+                     in do runView view rot
+                           removeEventListener mousemove drag false target
+                           removeEventListener mouseleave drop false target
+                           removeEventListener mouseup drop false target
+                           installDragHandlers svg target view rot
+               in do addEventListener mousemove drag false target
+                     addEventListener mouseleave drop false target
+                     addEventListener mouseup drop false target
+                     removeEventListener mousedown down false target
+  in addEventListener mousedown down false target
 
 toScreen :: Vector -> Screen
 toScreen (Vector pt) = { u: t * pt.x
                        , v: t * pt.y
                        }
   where t = 1.0/(pt.z + if pt.z >= 0.0 then 1.0 else -1.0)
+
+fromScreen :: Screen -> UnitVector
+fromScreen s = normalize $ Vector { x: 2.0*s.u
+                                  , y: 2.0*s.v
+                                  , z: 1.0 - s.u*s.u - s.v*s.v
+                                  }
 
 svgns :: Nullable String
 svgns = toNullable (Just "http://www.w3.org/2000/svg")
