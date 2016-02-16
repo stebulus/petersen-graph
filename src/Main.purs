@@ -17,12 +17,14 @@ import DOM.Node.Document (createElementNS)
 import DOM.Node.Element (setAttribute)
 import DOM.Node.Node (appendChild)
 import DOM.Node.NonElementParentNode (getElementById)
-import DOM.Node.Types (Element(), ElementId(ElementId), elementToNode)
+import DOM.Node.Types (Element(), ElementId(ElementId), elementToEventTarget, elementToNode, NonElementParentNode())
 import Math (pi, sqrt)
 import Prelude
 
 import Quaternion (axisAngle, oneU, rotate, rotater, UnitQuaternion())
 import Radians hiding (scale)
+import Screen
+import qualified SVG as SVG
 import Vector
 
 type Model = UnitQuaternion
@@ -85,7 +87,6 @@ polylines = flip map rots \rot -> map (rotate rot) polyline
         q = rotater (normalize top1) (normalize (oppTop1 ++ oppTop2))
         antitop1 = rotate (q <> q) top1
 
-type Screen = { u :: Number, v :: Number }
 
 toScreen :: Vector -> Screen
 toScreen (Vector pt) = { u: t * pt.x
