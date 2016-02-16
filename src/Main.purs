@@ -11,6 +11,7 @@ import Data.Monoid (Monoid)
 import Data.Nullable (Nullable(), toMaybe, toNullable)
 import Data.Traversable (for)
 import DOM (DOM())
+import DOM.Event.Event (preventDefault)
 import DOM.Event.EventTarget (addEventListener, eventListener, removeEventListener)
 import DOM.Event.EventTypes (mousedown, mouseleave, mousemove, mouseup)
 import DOM.Event.Types (EventTarget())
@@ -104,16 +105,19 @@ installDragHandlers svg target view initrot =
   let toVector evt = fromScreen (SVG.toScreen svg evt)
       down = eventListener \evt ->
                let draggedFrom = toVector evt
-                   drag = eventListener \evt' ->
+                   drag = eventListener \evt' -> do
+                     preventDefault evt'
                      runView view (rotater draggedFrom (toVector evt') <> initrot)
                    drop = eventListener \evt' ->
                      let rot = rotater draggedFrom (toVector evt') <> initrot
-                     in do runView view rot
+                     in do preventDefault evt'
+                           runView view rot
                            removeEventListener mousemove drag false target
                            removeEventListener mouseleave drop false target
                            removeEventListener mouseup drop false target
                            installDragHandlers svg target view rot
-               in do addEventListener mousemove drag false target
+               in do preventDefault evt
+                     addEventListener mousemove drag false target
                      addEventListener mouseleave drop false target
                      addEventListener mouseup drop false target
                      removeEventListener mousedown down false target
