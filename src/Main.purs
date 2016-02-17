@@ -34,8 +34,6 @@ import Screen
 import qualified SVG as SVG
 import Vector
 
-type Model = UnitQuaternion
-
 data View e a = View (a -> Eff (dom :: DOM | e) Unit)
 instance contravariantView :: Contravariant (View e) where
   cmap f (View g) = View (g <<< f)
