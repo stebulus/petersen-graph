@@ -19,7 +19,7 @@ import DOM.HTML.Types (htmlDocumentToDocument, htmlDocumentToNonElementParentNod
 import DOM.HTML.Window (document)
 import DOM.Node.Document (createElementNS)
 import DOM.Node.Element (setAttribute)
-import DOM.Node.Node (appendChild)
+import DOM.Node.Node (appendChild, setTextContent)
 import DOM.Node.Types (Element(), ElementId(ElementId), elementToEventTarget, elementToNode)
 import Math (pi, sqrt)
 import Prelude
@@ -46,6 +46,12 @@ main = void $ logErrors $ do
     return (rotatedPolyline elem pts)
   runView view oneU
   installDragHandlers svg world view oneU
+  dragme <- mustGetElementById (ElementId "drag-me") doc'
+  let hideDragMe = eventListener \evt -> do
+        setAttribute "class" "dragged" dragme
+        removeEventListener mousedown hideDragMe false (elementToEventTarget world)
+  addEventListener mousedown hideDragMe false (elementToEventTarget world)
+  setTextContent "drag me" (elementToNode dragme)
 
 polylines :: Array (Array Vector)
 polylines = flip map rots \rot -> map (rotate rot) polyline

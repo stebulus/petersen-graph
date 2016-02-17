@@ -21,8 +21,19 @@
   }
   #world:hover { cursor: grab; }
   #world.dragging:hover { cursor: grabbing; }
+  #drag-me {
+    font-family: sans;
+    font-size: 0.1px;
+    transition-property: visibility, opacity;
+    transition-duration: 2s;
+  }
+  #drag-me.dragged {
+    opacity: 0;
+    visibility: hidden;
+  }
 </style>
 <svg viewBox='-1.1 -1.1 2.2 2.2' id='petersen-graph'>
+<text id='drag-me' text-anchor='middle' x='0' y='0'></text>
 <g id='edges'></g>
 <circle id='world' cx='0' cy='0' r='1'></circle>
 </svg>
