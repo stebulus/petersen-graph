@@ -3,12 +3,14 @@ module Main where
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE(), log)
 import Control.Monad.Eff.Exception (catchException, error, EXCEPTION(), message, throwException)
+import Data.Array (filter)
 import Data.Functor.Contravariant (cmap, Contravariant)
 import Data.Foldable (for_, intercalate, mconcat)
 import Data.List.Lazy (fromList, iterate, take)
 import Data.Maybe (Maybe(Just,Nothing))
 import Data.Monoid (Monoid)
 import Data.Nullable (Nullable(), toMaybe, toNullable)
+import Data.String (split)
 import Data.Traversable (for)
 import DOM (DOM())
 import DOM.Event.Event (preventDefault)
@@ -19,7 +21,7 @@ import DOM.HTML (window)
 import DOM.HTML.Types (htmlDocumentToDocument, htmlDocumentToNonElementParentNode)
 import DOM.HTML.Window (document)
 import DOM.Node.Document (createElementNS)
-import DOM.Node.Element (setAttribute)
+import DOM.Node.Element (getAttribute, setAttribute)
 import DOM.Node.Node (appendChild)
 import DOM.Node.NonElementParentNode (getElementById)
 import DOM.Node.Types (Element(), ElementId(ElementId), elementToEventTarget, elementToNode, NonElementParentNode())
@@ -56,7 +58,7 @@ mainM = do
     appendChild (elementToNode elem) (elementToNode g)
     return (rotatedPolyline elem pts)
   runView view oneU
-  installDragHandlers svg (elementToEventTarget world) view oneU
+  installDragHandlers svg world view oneU
 
 mustGetElementById :: forall e. ElementId -> NonElementParentNode
                    -> Eff (dom :: DOM, err :: EXCEPTION | e) Element
@@ -100,9 +102,10 @@ polylines = flip map rots \rot -> map (rotate rot) polyline
         q = rotater (normalize top1) (normalize (oppTop1 ++ oppTop2))
         antitop1 = rotate (q <> q) top1
 
-installDragHandlers :: forall e. Element -> EventTarget -> View (console :: CONSOLE | e) UnitQuaternion -> UnitQuaternion -> Eff (dom :: DOM, console :: CONSOLE | e) Unit
+installDragHandlers :: forall e. Element -> Element -> View (console :: CONSOLE | e) UnitQuaternion -> UnitQuaternion -> Eff (dom :: DOM, console :: CONSOLE | e) Unit
 installDragHandlers svg target view initrot =
   let toVector evt = fromScreen (SVG.toScreen svg evt)
+      target' = elementToEventTarget target
       down = eventListener \evt ->
                let draggedFrom = toVector evt
                    drag = eventListener \evt' -> do
@@ -111,17 +114,19 @@ installDragHandlers svg target view initrot =
                    drop = eventListener \evt' ->
                      let rot = rotater draggedFrom (toVector evt') <> initrot
                      in do preventDefault evt'
+                           removeClass "dragging" target
                            runView view rot
-                           removeEventListener mousemove drag false target
-                           removeEventListener mouseleave drop false target
-                           removeEventListener mouseup drop false target
+                           removeEventListener mousemove drag false target'
+                           removeEventListener mouseleave drop false target'
+                           removeEventListener mouseup drop false target'
                            installDragHandlers svg target view rot
                in do preventDefault evt
-                     addEventListener mousemove drag false target
-                     addEventListener mouseleave drop false target
-                     addEventListener mouseup drop false target
-                     removeEventListener mousedown down false target
-  in addEventListener mousedown down false target
+                     addClass "dragging" target
+                     addEventListener mousemove drag false target'
+                     addEventListener mouseleave drop false target'
+                     addEventListener mouseup drop false target'
+                     removeEventListener mousedown down false target'
+  in addEventListener mousedown down false target'
 
 toScreen :: Vector -> Screen
 toScreen (Vector pt) = { u: t * pt.x
@@ -137,6 +142,24 @@ fromScreen s = normalize $ Vector { x: 2.0*s.u
 
 svgns :: Nullable String
 svgns = toNullable (Just "http://www.w3.org/2000/svg")
+
+addClass :: forall e. String -> Element -> Eff (dom :: DOM | e) Unit
+addClass cls elem = do
+  mexistingcls <- toMaybe <$> getAttribute "class" elem
+  let newcls = case mexistingcls of
+                 Nothing -> cls
+                 Just existingcls -> existingcls ++ " " ++ cls
+  setAttribute "class" newcls elem
+
+removeClass :: forall e. String -> Element -> Eff (dom :: DOM | e) Unit
+removeClass cls elem = do
+  mexistingcls <- toMaybe <$> getAttribute "class" elem
+  case mexistingcls of
+    Nothing -> return unit
+    Just existingcls -> let newcls = split existingcls " "
+                                     # filter (/= cls)
+                                     # intercalate " "
+                        in setAttribute "class" newcls elem
 
 main :: Eff (dom :: DOM, console :: CONSOLE) Unit
 main = void $ logErrors mainM
