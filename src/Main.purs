@@ -68,9 +68,9 @@ polylines = flip map rots \rot -> map (rotate rot) polyline
         antitop1 = rotate (q <> q) top1
 
 installDragHandlers :: forall e. Element -> Element
-                    -> View (dom :: DOM, console :: CONSOLE | e) UnitQuaternion
+                    -> View (dom :: DOM | e) UnitQuaternion
                     -> UnitQuaternion
-                    -> Eff (dom :: DOM, console :: CONSOLE | e) Unit
+                    -> Eff (dom :: DOM | e) Unit
 installDragHandlers svg target view initrot =
   let toVector evt = fromScreen (SVG.toScreen svg evt)
       target' = elementToEventTarget target
