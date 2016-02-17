@@ -1,16 +1,13 @@
 module Main where
 
 import Control.Monad.Eff (Eff())
-import Control.Monad.Eff.Console (CONSOLE(), log)
-import Control.Monad.Eff.Exception (catchException, error, EXCEPTION(), message, throwException)
-import Data.Array (filter)
-import Data.Functor.Contravariant (cmap, Contravariant)
-import Data.Foldable (for_, intercalate, mconcat)
+import Control.Monad.Eff.Console (CONSOLE())
+import Control.Monad.Eff.Exception (EXCEPTION())
+import Data.Foldable (intercalate, mconcat)
+import Data.Functor.Contravariant (cmap)
 import Data.List.Lazy (fromList, iterate, take)
 import Data.Maybe (Maybe(Just,Nothing))
 import Data.Monoid (Monoid)
-import Data.Nullable (Nullable(), toMaybe, toNullable)
-import Data.String (split)
 import Data.Traversable (for)
 import DOM (DOM())
 import DOM.Event.Event (preventDefault)
@@ -21,31 +18,23 @@ import DOM.HTML (window)
 import DOM.HTML.Types (htmlDocumentToDocument, htmlDocumentToNonElementParentNode)
 import DOM.HTML.Window (document)
 import DOM.Node.Document (createElementNS)
-import DOM.Node.Element (getAttribute, setAttribute)
+import DOM.Node.Element (setAttribute)
 import DOM.Node.Node (appendChild)
-import DOM.Node.NonElementParentNode (getElementById)
-import DOM.Node.Types (Element(), ElementId(ElementId), elementToEventTarget, elementToNode, NonElementParentNode())
+import DOM.Node.Types (Element(), ElementId(ElementId), elementToEventTarget, elementToNode)
 import Math (pi, sqrt)
 import Prelude
 
+import DOMExtra
+import LogErrors
 import Quaternion (axisAngle, oneU, rotate, rotater, UnitQuaternion())
 import Radians hiding (scale)
 import Screen
 import qualified SVG as SVG
 import Vector
+import View
 
-data View e a = View (a -> Eff (dom :: DOM | e) Unit)
-instance contravariantView :: Contravariant (View e) where
-  cmap f (View g) = View (g <<< f)
-instance semigroupView :: Semigroup (View e a) where
-  append (View f) (View g) = View \x -> f x >>= const (g x)
-instance monoidView :: Monoid (View e a) where
-  mempty = View \x -> return unit
-runView :: forall e a. View e a -> a -> Eff (dom :: DOM | e) Unit
-runView (View v) = v
-
-mainM :: Eff (dom :: DOM, console :: CONSOLE, err :: EXCEPTION) Unit
-mainM = do
+main :: Eff (dom :: DOM, console :: CONSOLE) Unit
+main = void $ logErrors $ do
   doc <- window >>= document
   let doc' = htmlDocumentToNonElementParentNode doc
   g <- mustGetElementById (ElementId "edges") doc'
@@ -57,28 +46,6 @@ mainM = do
     return (rotatedPolyline elem pts)
   runView view oneU
   installDragHandlers svg world view oneU
-
-mustGetElementById :: forall e. ElementId -> NonElementParentNode
-                   -> Eff (dom :: DOM, err :: EXCEPTION | e) Element
-mustGetElementById elemid@(ElementId idstr) parent = do
-  melem <- toMaybe <$> getElementById elemid parent
-  case melem of
-    Nothing -> throwException (error ("#" ++ idstr ++ " not found"))
-    Just elem -> return elem
-
-rotatedPolyline :: forall e. Element -> Array Vector -> View e UnitQuaternion
-rotatedPolyline elem pts =
-  cmap (\u -> map (toScreen <<< rotate u) pts)
-       (polylineView elem)
-
-polylineView :: forall e. Element -> View e (Array Screen)
-polylineView elem =
-  cmap (\pts -> intercalate "," $ map show $ pts >>= \pt -> [pt.u, pt.v])
-       (attributeView elem "points")
-
-attributeView :: forall e. Element -> String -> View e String
-attributeView elem attrname = View \attrvalue ->
-  setAttribute attrname attrvalue elem
 
 polylines :: Array (Array Vector)
 polylines = flip map rots \rot -> map (rotate rot) polyline
@@ -100,7 +67,10 @@ polylines = flip map rots \rot -> map (rotate rot) polyline
         q = rotater (normalize top1) (normalize (oppTop1 ++ oppTop2))
         antitop1 = rotate (q <> q) top1
 
-installDragHandlers :: forall e. Element -> Element -> View (console :: CONSOLE | e) UnitQuaternion -> UnitQuaternion -> Eff (dom :: DOM, console :: CONSOLE | e) Unit
+installDragHandlers :: forall e. Element -> Element
+                    -> View (dom :: DOM, console :: CONSOLE | e) UnitQuaternion
+                    -> UnitQuaternion
+                    -> Eff (dom :: DOM, console :: CONSOLE | e) Unit
 installDragHandlers svg target view initrot =
   let toVector evt = fromScreen (SVG.toScreen svg evt)
       target' = elementToEventTarget target
@@ -126,6 +96,17 @@ installDragHandlers svg target view initrot =
                      removeEventListener mousedown down false target'
   in addEventListener mousedown down false target'
 
+rotatedPolyline :: forall e. Element -> Array Vector
+                -> View (dom :: DOM | e) UnitQuaternion
+rotatedPolyline elem pts =
+  cmap (\u -> map (toScreen <<< rotate u) pts)
+       (polylineView elem)
+
+polylineView :: forall e. Element -> View (dom :: DOM | e) (Array Screen)
+polylineView elem =
+  cmap (\pts -> intercalate "," $ map show $ pts >>= \pt -> [pt.u, pt.v])
+       (attributeView elem "points")
+
 toScreen :: Vector -> Screen
 toScreen (Vector pt) = { u: t * pt.x
                        , v: t * pt.y
@@ -137,33 +118,3 @@ fromScreen s = normalize $ Vector { x: 2.0*s.u
                                   , y: 2.0*s.v
                                   , z: 1.0 - s.u*s.u - s.v*s.v
                                   }
-
-svgns :: Nullable String
-svgns = toNullable (Just "http://www.w3.org/2000/svg")
-
-addClass :: forall e. String -> Element -> Eff (dom :: DOM | e) Unit
-addClass cls elem = do
-  mexistingcls <- toMaybe <$> getAttribute "class" elem
-  let newcls = case mexistingcls of
-                 Nothing -> cls
-                 Just existingcls -> existingcls ++ " " ++ cls
-  setAttribute "class" newcls elem
-
-removeClass :: forall e. String -> Element -> Eff (dom :: DOM | e) Unit
-removeClass cls elem = do
-  mexistingcls <- toMaybe <$> getAttribute "class" elem
-  case mexistingcls of
-    Nothing -> return unit
-    Just existingcls -> let newcls = split existingcls " "
-                                     # filter (/= cls)
-                                     # intercalate " "
-                        in setAttribute "class" newcls elem
-
-main :: Eff (dom :: DOM, console :: CONSOLE) Unit
-main = void $ logErrors mainM
-
-logErrors :: forall e a.  Eff (err :: EXCEPTION, console :: CONSOLE | e) a
-          -> Eff (console :: CONSOLE | e) (Maybe a)
-logErrors m = catchException handle (Just <$> m)
-    where handle err = do log $ message err
-                          return Nothing
