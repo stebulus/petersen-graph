@@ -14,6 +14,8 @@ import qualified Test.Vector as TV
 
 newtype AQuaternion = A (Quaternion Number)
 newtype UQuaternion = U (UnitQuaternion Number)
+newtype FFunction = F (Number -> Number)
+newtype QFQuaternion = QF (Quaternion (Number -> Number))
 
 instance arbitraryQuaternion :: Arbitrary AQuaternion where
   arbitrary = do r <- arbitrary
@@ -24,6 +26,14 @@ instance arbitraryQuaternion :: Arbitrary AQuaternion where
 instance arbitraryUnitQuaternion :: Arbitrary UQuaternion where
   arbitrary = do (A q) <- arbitrary
                  return $ U $ normalize q
+instance arbitraryFunction :: Arbitrary FFunction where
+  arbitrary = F <$> arbitrary
+instance arbitraryQFQuaternion :: Arbitrary QFQuaternion where
+  arbitrary = do (F r) <- arbitrary
+                 (F i) <- arbitrary
+                 (F j) <- arbitrary
+                 (F k) <- arbitrary
+                 return $ QF $ quaternion r i j k
 
 (~=) :: Quaternion Number -> Quaternion Number -> Result
 (~=) qa@(Quaternion a) qb@(Quaternion b) =
@@ -35,6 +45,16 @@ instance arbitraryUnitQuaternion :: Arbitrary UQuaternion where
 infix 4 ~=  -- same as Prelude.(==)
 
 main = do
+  -- Functor laws
+  quickCheck \(A a)             -> map id a == a
+  quickCheck \(A a) (F f) (F g) -> map g (map f a) == map (g <<< f) a
+  -- Apply law
+  quickCheck \(A a) (QF f) (QF g) -> (<<<) <$> f <*> g <*> a == f <*> (g <*> a)
+  -- Applicative laws
+  quickCheck \(A a)             -> (pure id) <*> a == a
+  quickCheck \(A a) (QF f) (QF g) -> (pure (<<<)) <*> f <*> g <*> a == f <*> (g <*> a)
+  quickCheck \a (F f)           -> (pure f) <*> (pure a) == (pure (f a) :: Quaternion Number)
+  quickCheck \(QF f) a          -> f <*> (pure a) == (pure ($ a)) <*> f
   -- Semiring laws
   quickCheck \(A q) (A r) (A s) -> q+(r+s) ~= (q+r)+s
   quickCheck \(A q)             -> q+zero ~= q

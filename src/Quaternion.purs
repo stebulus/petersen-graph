@@ -9,6 +9,9 @@ import qualified Vector as V
 
 data Quaternion a = Quaternion { r :: a, i :: a, j :: a, k :: a }
 
+quaternion :: forall a. a -> a -> a -> a -> Quaternion a
+quaternion r i j k = Quaternion { r: r, i: i, j: j, k: k }
+
 instance eqQuaternion :: (Eq a) => Eq (Quaternion a) where
   eq (Quaternion a) (Quaternion b) =
     a.r == b.r && a.i == b.i && a.j == b.j && a.k == b.k
@@ -20,43 +23,41 @@ instance showQuaternion :: (Show a) => Show (Quaternion a) where
                                ++ " , k: " ++ show q.k
                                ++ " }"
 
-instance semiringQuarternion :: (Ring a) => Semiring (Quaternion a) where
-  add (Quaternion a) (Quaternion b) =
-    Quaternion { r: a.r + b.r
-               , i: a.i + b.i
-               , j: a.j + b.j
-               , k: a.k + b.k
-               }
-  zero = Quaternion { r: zero, i: zero, j: zero, k: zero }
+instance functorQuaternion :: Functor Quaternion where
+  map = apply <<< pure
+
+instance applyQuaternion :: Apply Quaternion where
+  apply (Quaternion f) (Quaternion a) =
+    quaternion (f.r a.r) (f.i a.i) (f.j a.j) (f.k a.k)
+
+instance applicativeQuaternion :: Applicative Quaternion where
+  pure a = quaternion a a a a
+
+instance semiringQuaternion :: (Ring a) => Semiring (Quaternion a) where
+  add a b = add <$> a <*> b
+  zero = pure zero
   mul (Quaternion a) (Quaternion b) =
-    Quaternion { r: a.r*b.r - a.i*b.i - a.j*b.j - a.k*b.k
-               , i: a.r*b.i + a.i*b.r + a.j*b.k - a.k*b.j
-               , j: a.r*b.j + a.j*b.r + a.k*b.i - a.i*b.k
-               , k: a.r*b.k + a.k*b.r + a.i*b.j - a.j*b.i
-               }
-  one = Quaternion { r: one, i: zero, j: zero, k: zero }
+    quaternion (a.r*b.r - a.i*b.i - a.j*b.j - a.k*b.k)
+               (a.r*b.i + a.i*b.r + a.j*b.k - a.k*b.j)
+               (a.r*b.j + a.j*b.r + a.k*b.i - a.i*b.k)
+               (a.r*b.k + a.k*b.r + a.i*b.j - a.j*b.i)
+  one = quaternion one zero zero zero
+
 instance ringQuaternion :: (Ring a) => Ring (Quaternion a) where
-  sub (Quaternion a) (Quaternion b) =
-    Quaternion { r: a.r - b.r
-               , i: a.i - b.i
-               , j: a.j - b.j
-               , k: a.k - b.k
-               }
+  sub a b = sub <$> a <*> b
+
 instance modulosemiringQuaternion :: (DivisionRing a) => ModuloSemiring (Quaternion a) where
   div n d = scale (one/normsq d) (n * conjugate d)
   mod n d = zero
+
 instance divisionringQuaternion :: (DivisionRing a) => DivisionRing (Quaternion a)
 
 scale :: forall a. (Semiring a) => a -> Quaternion a -> Quaternion a
-scale s (Quaternion q) =
-    Quaternion { r: s*q.r, i: s*q.i, j: s*q.j, k: s*q.k }
+scale s q = map (s*) q
 
 conjugate :: forall a. (Ring a) => Quaternion a -> Quaternion a
-conjugate (Quaternion q) = Quaternion { r: q.r
-                                      , i: negate q.i
-                                      , j: negate q.j
-                                      , k: negate q.k
-                                      }
+conjugate (Quaternion q) =
+  quaternion q.r (negate q.i) (negate q.j) (negate q.k)
 
 normsq :: forall a. (Semiring a) => Quaternion a -> a
 normsq (Quaternion q) = q.r*q.r + q.i*q.i + q.j*q.j + q.k*q.k
@@ -65,7 +66,7 @@ norm :: Quaternion Number -> Number
 norm = sqrt <<< normsq
 
 fromVector :: forall a. (Semiring a) => V.Vector a -> Quaternion a
-fromVector (V.Vector p) = Quaternion { r: zero, i: p.x, j: p.y, k: p.z }
+fromVector (V.Vector p) = quaternion zero p.x p.y p.z
 
 scalarPart :: forall a. Quaternion a -> a
 scalarPart (Quaternion q) = q.r
@@ -96,9 +97,7 @@ rotater (V.UnitVector from) (V.UnitVector to) =
 
 axisAngle :: V.UnitVector Number -> R.Radians -> UnitQuaternion Number
 axisAngle (V.UnitVector (V.Vector axis)) angle =
-  UnitQuaternion (Quaternion { r: R.cos (R.scale 0.5 angle)
-                             , i: axis.x * s
-                             , j: axis.y * s
-                             , k: axis.z * s
-                             })
-  where s = R.sin (R.scale 0.5 angle)
+  UnitQuaternion $ quaternion c (axis.x * s) (axis.y * s) (axis.z * s)
+  where s = R.sin half
+        c = R.cos half
+        half = R.scale 0.5 angle
