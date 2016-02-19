@@ -22,19 +22,19 @@ instance showVector :: (Show a) => Show (Vector a) where
                         ++ " }"
 
 instance functorVector :: Functor Vector where
-  map f (Vector v) = vector (f v.x) (f v.y) (f v.z)
+  map = apply <<< pure
 instance applyVector :: Apply Vector where
   apply (Vector f) (Vector a) = vector (f.x a.x) (f.y a.y) (f.z a.z)
 instance applicativeVector :: Applicative Vector where
   pure a = vector a a a
 
 instance semigroupVector :: (Semiring a) => Semigroup (Vector a) where
-  append (Vector u) (Vector v) = vector (u.x + v.x) (u.y + v.y) (u.z + v.z)
+  append u v = (+) <$> u <*> v
 instance monoidVector :: (Semiring a) => Monoid (Vector a) where
   mempty = pure zero
 
 scale :: forall a. (Semiring a) => a -> Vector a -> Vector a
-scale s (Vector v) = vector (s*v.x) (s*v.y) (s*v.z)
+scale s v = map (s*) v
 
 newtype UnitVector a = UnitVector (Vector a)
 
