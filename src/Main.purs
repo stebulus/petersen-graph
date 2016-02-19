@@ -53,7 +53,7 @@ main = void $ logErrors $ do
   addEventListener mousedown hideDragMe false (elementToEventTarget world)
   setTextContent "drag me" (elementToNode dragme)
 
-polylines :: Array (Array Vector)
+polylines :: Array (Array (Vector Number))
 polylines = flip map rots \rot -> map (rotate rot) polyline
   where rots = fromList $ take 5 $ iterate (fifth <>) oneU
         polyline = [ rotate fifth top1
@@ -74,8 +74,8 @@ polylines = flip map rots \rot -> map (rotate rot) polyline
         antitop1 = rotate (q <> q) top1
 
 installDragHandlers :: forall e. Element -> Element
-                    -> View (dom :: DOM | e) UnitQuaternion
-                    -> UnitQuaternion
+                    -> View (dom :: DOM | e) (UnitQuaternion Number)
+                    -> UnitQuaternion Number
                     -> Eff (dom :: DOM | e) Unit
 installDragHandlers svg target view initrot =
   let toVector evt = fromScreen (SVG.toScreen svg evt)
@@ -102,8 +102,8 @@ installDragHandlers svg target view initrot =
                      removeEventListener mousedown down false target'
   in addEventListener mousedown down false target'
 
-rotatedPolyline :: forall e. Element -> Array Vector
-                -> View (dom :: DOM | e) UnitQuaternion
+rotatedPolyline :: forall e. Element -> Array (Vector Number)
+                -> View (dom :: DOM | e) (UnitQuaternion Number)
 rotatedPolyline elem pts =
   cmap (\u -> map (toScreen <<< rotate u) pts)
        (polylineView elem)
@@ -113,13 +113,13 @@ polylineView elem =
   cmap (\pts -> intercalate "," $ map show $ pts >>= \pt -> [pt.u, pt.v])
        (attributeView elem "points")
 
-toScreen :: Vector -> Screen
+toScreen :: Vector Number -> Screen
 toScreen (Vector pt) = { u: t * pt.x
                        , v: t * pt.y
                        }
   where t = 1.0/(pt.z + if pt.z >= 0.0 then 1.0 else -1.0)
 
-fromScreen :: Screen -> UnitVector
+fromScreen :: Screen -> UnitVector Number
 fromScreen s = normalize $ Vector { x: 2.0*s.u
                                   , y: 2.0*s.v
                                   , z: 1.0 - s.u*s.u - s.v*s.v

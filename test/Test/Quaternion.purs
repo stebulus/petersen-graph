@@ -12,8 +12,8 @@ import qualified Vector as V
 import Test.Vector (VVector(..), UVector(..))
 import qualified Test.Vector as TV
 
-newtype AQuaternion = A Quaternion
-newtype UQuaternion = U UnitQuaternion
+newtype AQuaternion = A (Quaternion Number)
+newtype UQuaternion = U (UnitQuaternion Number)
 
 instance arbitraryQuaternion :: Arbitrary AQuaternion where
   arbitrary = do r <- arbitrary
@@ -25,7 +25,7 @@ instance arbitraryUnitQuaternion :: Arbitrary UQuaternion where
   arbitrary = do (A q) <- arbitrary
                  return $ U $ normalize q
 
-(~=) :: Quaternion -> Quaternion -> Result
+(~=) :: Quaternion Number -> Quaternion Number -> Result
 (~=) qa@(Quaternion a) qb@(Quaternion b) =
   (a.r =~= b.r)
   && (a.i =~= b.i)

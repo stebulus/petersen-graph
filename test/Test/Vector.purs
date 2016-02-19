@@ -8,8 +8,8 @@ import Prelude
 
 import Vector
 
-newtype VVector = V Vector
-newtype UVector = UV UnitVector
+newtype VVector = V (Vector Number)
+newtype UVector = UV (UnitVector Number)
 
 instance arbitraryVector :: Arbitrary VVector where
   arbitrary = do x <- arbitrary
@@ -20,7 +20,7 @@ instance arbitraryUnitVector :: Arbitrary UVector where
   arbitrary = do (V v) <- arbitrary
                  return $ UV $ normalize v
 
-(~=) :: Vector -> Vector -> Result
+(~=) :: Vector Number -> Vector Number -> Result
 (~=) va@(Vector a) vb@(Vector b) =
   (a.x =~= b.x)
   && (a.y =~= b.y)

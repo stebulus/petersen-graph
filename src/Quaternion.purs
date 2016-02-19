@@ -7,95 +7,91 @@ import Prelude
 import qualified Radians as R
 import qualified Vector as V
 
-data Quaternion = Quaternion { r :: Number
-                             , i :: Number
-                             , j :: Number
-                             , k :: Number
-                             }
-instance eqQuaternion :: Eq Quaternion where
+data Quaternion a = Quaternion { r :: a, i :: a, j :: a, k :: a }
+instance eqQuaternion :: (Eq a) => Eq (Quaternion a) where
   eq (Quaternion a) (Quaternion b) =
     a.r == b.r && a.i == b.i && a.j == b.j && a.k == b.k
-instance showQuaternion :: Show Quaternion where
+instance showQuaternion :: (Show a) => Show (Quaternion a) where
   show (Quaternion q) = "Quaternion { r: " ++ show q.r
                                ++ " , i: " ++ show q.i
                                ++ " , j: " ++ show q.j
                                ++ " , k: " ++ show q.k
                                ++ " }"
 
-instance semiringQuarternion :: Semiring Quaternion where
+instance semiringQuarternion :: (Ring a) => Semiring (Quaternion a) where
   add (Quaternion a) (Quaternion b) =
     Quaternion { r: a.r + b.r
                , i: a.i + b.i
                , j: a.j + b.j
                , k: a.k + b.k
                }
-  zero = Quaternion { r: 0.0, i: 0.0, j: 0.0, k: 0.0 }
+  zero = Quaternion { r: zero, i: zero, j: zero, k: zero }
   mul (Quaternion a) (Quaternion b) =
     Quaternion { r: a.r*b.r - a.i*b.i - a.j*b.j - a.k*b.k
                , i: a.r*b.i + a.i*b.r + a.j*b.k - a.k*b.j
                , j: a.r*b.j + a.j*b.r + a.k*b.i - a.i*b.k
                , k: a.r*b.k + a.k*b.r + a.i*b.j - a.j*b.i
                }
-  one = Quaternion { r: 1.0, i: 0.0, j: 0.0, k: 0.0 }
-instance ringQuaternion :: Ring Quaternion where
+  one = Quaternion { r: one, i: zero, j: zero, k: zero }
+instance ringQuaternion :: (Ring a) => Ring (Quaternion a) where
   sub (Quaternion a) (Quaternion b) =
     Quaternion { r: a.r - b.r
                , i: a.i - b.i
                , j: a.j - b.j
                , k: a.k - b.k
                }
-instance modulosemiringQuaternion :: ModuloSemiring Quaternion where
-  div n d = scale (1.0/normsq d) (n * conjugate d)
+instance modulosemiringQuaternion :: (DivisionRing a) => ModuloSemiring (Quaternion a) where
+  div n d = scale (one/normsq d) (n * conjugate d)
   mod n d = zero
-instance divisionringQuaternion :: DivisionRing Quaternion
+instance divisionringQuaternion :: (DivisionRing a) => DivisionRing (Quaternion a)
 
-scale :: Number -> Quaternion -> Quaternion
+scale :: forall a. (Semiring a) => a -> Quaternion a -> Quaternion a
 scale s (Quaternion q) =
-    Quaternion { r: s*q.r
-               , i: s*q.i
-               , j: s*q.j
-               , k: s*q.k
-               }
+    Quaternion { r: s*q.r, i: s*q.i, j: s*q.j, k: s*q.k }
 
-conjugate :: Quaternion -> Quaternion
-conjugate (Quaternion q) = Quaternion { r: q.r, i: -q.i, j: -q.j, k: -q.k }
+conjugate :: forall a. (Ring a) => Quaternion a -> Quaternion a
+conjugate (Quaternion q) = Quaternion { r: q.r
+                                      , i: negate q.i
+                                      , j: negate q.j
+                                      , k: negate q.k
+                                      }
 
-normsq :: Quaternion -> Number
+normsq :: forall a. (Semiring a) => Quaternion a -> a
 normsq (Quaternion q) = q.r*q.r + q.i*q.i + q.j*q.j + q.k*q.k
 
-norm :: Quaternion -> Number
+norm :: Quaternion Number -> Number
 norm = sqrt <<< normsq
 
-newtype UnitQuaternion = UnitQuaternion Quaternion
+newtype UnitQuaternion a = UnitQuaternion (Quaternion a)
 
-oneU :: UnitQuaternion
+oneU :: forall a. (Ring a) => UnitQuaternion a
 oneU = UnitQuaternion one
 
-normalize :: Quaternion -> UnitQuaternion
+normalize :: Quaternion Number -> UnitQuaternion Number
 normalize q = UnitQuaternion (scale (1.0/norm q) q)
 
-instance semigroupUnitQuaternion :: Semigroup UnitQuaternion where
+instance semigroupUnitQuaternion :: (Ring a) => Semigroup (UnitQuaternion a) where
   append (UnitQuaternion u) (UnitQuaternion v) = UnitQuaternion (u*v)
-instance monoidUnitQuaternion :: Monoid UnitQuaternion where
-  mempty = UnitQuaternion one
+instance monoidUnitQuaternion :: (Ring a) => Monoid (UnitQuaternion a) where
+  mempty = oneU
 
-rotate :: UnitQuaternion -> V.Vector -> V.Vector
+rotate :: forall a. (Ring a) => UnitQuaternion a -> V.Vector a -> V.Vector a
 rotate (UnitQuaternion u) p = vectorPart (u * (fromVector p) * (conjugate u))
 
-rotater :: V.UnitVector -> V.UnitVector -> UnitQuaternion
+rotater :: V.UnitVector Number -> V.UnitVector Number -> UnitQuaternion Number
 rotater (V.UnitVector from) (V.UnitVector to) =
   normalize (one - (fromVector to)*(fromVector from))
 
-fromVector :: V.Vector -> Quaternion
-fromVector (V.Vector p) = Quaternion { r: 0.0, i: p.x, j: p.y, k: p.z }
+fromVector :: forall a. (Semiring a) => V.Vector a -> Quaternion a
+fromVector (V.Vector p) = Quaternion { r: zero, i: p.x, j: p.y, k: p.z }
 
-scalarPart :: Quaternion -> Number
+scalarPart :: forall a. Quaternion a -> a
 scalarPart (Quaternion q) = q.r
 
-vectorPart :: Quaternion -> V.Vector
+vectorPart :: forall a. Quaternion a -> V.Vector a
 vectorPart (Quaternion q) = V.Vector { x: q.i, y: q.j, z: q.k }
 
-axisAngle :: V.UnitVector -> R.Radians -> UnitQuaternion
+axisAngle :: V.UnitVector Number -> R.Radians -> UnitQuaternion Number
 axisAngle (V.UnitVector (V.Vector axis)) angle =
   UnitQuaternion (Quaternion { r: R.cos (R.scale 0.5 angle)
                              , i: axis.x * s
