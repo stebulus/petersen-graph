@@ -120,7 +120,6 @@ toScreen (Vector pt) = { u: t * pt.x
   where t = 1.0/(pt.z + if pt.z >= 0.0 then 1.0 else -1.0)
 
 fromScreen :: Screen -> UnitVector Number
-fromScreen s = normalize $ Vector { x: 2.0*s.u
-                                  , y: 2.0*s.v
-                                  , z: 1.0 - s.u*s.u - s.v*s.v
-                                  }
+fromScreen s = normalize $ vector (2.0*s.u)
+                                  (2.0*s.v)
+                                  (1.0 - s.u*s.u - s.v*s.v)

@@ -89,7 +89,7 @@ scalarPart :: forall a. Quaternion a -> a
 scalarPart (Quaternion q) = q.r
 
 vectorPart :: forall a. Quaternion a -> V.Vector a
-vectorPart (Quaternion q) = V.Vector { x: q.i, y: q.j, z: q.k }
+vectorPart (Quaternion q) = V.vector q.i q.j q.k
 
 axisAngle :: V.UnitVector Number -> R.Radians -> UnitQuaternion Number
 axisAngle (V.UnitVector (V.Vector axis)) angle =

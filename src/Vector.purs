@@ -8,6 +8,9 @@ import Radians hiding (scale)
 
 data Vector a = Vector { x :: a, y :: a, z :: a }
 
+vector :: forall a. a -> a -> a -> Vector a
+vector x y z = Vector { x: x, y: y, z: z }
+
 instance eqVector :: (Eq a) => Eq (Vector a) where
   eq (Vector u) (Vector v) = u.x == v.x
                           && u.y == v.y
@@ -19,26 +22,19 @@ instance showVector :: (Show a) => Show (Vector a) where
                         ++ " }"
 
 instance functorVector :: Functor Vector where
-  map f (Vector v) = Vector { x: f v.x, y: f v.y, z: f v.z }
+  map f (Vector v) = vector (f v.x) (f v.y) (f v.z)
 instance applyVector :: Apply Vector where
-  apply (Vector f) (Vector a) = Vector { x: f.x a.x, y: f.y a.y, z: f.z a.z }
+  apply (Vector f) (Vector a) = vector (f.x a.x) (f.y a.y) (f.z a.z)
 instance applicativeVector :: Applicative Vector where
-  pure a = Vector { x: a, y: a, z: a }
+  pure a = vector a a a
 
 instance semigroupVector :: (Semiring a) => Semigroup (Vector a) where
-  append (Vector u) (Vector v) =
-    Vector { x: u.x + v.x
-           , y: u.y + v.y
-           , z: u.z + v.z
-           }
+  append (Vector u) (Vector v) = vector (u.x + v.x) (u.y + v.y) (u.z + v.z)
 instance monoidVector :: (Semiring a) => Monoid (Vector a) where
-  mempty = Vector { x: zero, y: zero, z: zero }
+  mempty = pure zero
 
 scale :: forall a. (Semiring a) => a -> Vector a -> Vector a
-scale s (Vector v) = Vector { x: s*v.x
-                            , y: s*v.y
-                            , z: s*v.z
-                            }
+scale s (Vector v) = vector (s*v.x) (s*v.y) (s*v.z)
 
 newtype UnitVector a = UnitVector (Vector a)
 
@@ -46,11 +42,11 @@ forgetUnit :: forall a. UnitVector a -> Vector a
 forgetUnit (UnitVector v) = v
 
 unitX :: forall a. (Semiring a) => UnitVector a
-unitX = UnitVector (Vector { x: one , y: zero, z: zero })
+unitX = UnitVector (vector one zero zero)
 unitY :: forall a. (Semiring a) => UnitVector a
-unitY = UnitVector (Vector { x: zero, y: one , z: zero })
+unitY = UnitVector (vector zero one zero)
 unitZ :: forall a. (Semiring a) => UnitVector a
-unitZ = UnitVector (Vector { x: zero, y: zero, z: one  })
+unitZ = UnitVector (vector zero zero one)
 
 dot :: forall a. (Semiring a) => Vector a -> Vector a -> a
 dot (Vector u) (Vector v) = u.x*v.x + u.y*v.y + u.z*v.z
@@ -67,7 +63,6 @@ normalize v = UnitVector $ scale (one/norm v) v
 type Cylindrical = { rho :: Number, phi :: Radians, z :: Number }
 
 fromCylindrical :: Cylindrical -> Vector Number
-fromCylindrical c = Vector { x: c.rho * cos c.phi
-                           , y: c.rho * sin c.phi
-                           , z: c.z
-                           }
+fromCylindrical c = vector (c.rho * cos c.phi)
+                           (c.rho * sin c.phi)
+                           c.z
