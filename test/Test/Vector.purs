@@ -6,11 +6,11 @@ import Test.QuickCheck.Arbitrary
 import Test.QuickCheck.Data.ApproxNumber ((=~=))
 import Prelude
 
+import Test.Function
 import Vector
 
 newtype VVector = V (Vector Number)
 newtype UVector = UV (UnitVector Number)
-newtype FFunction = F (Number -> Number)
 newtype VFVector = VF (Vector (Number -> Number))
 
 instance arbitraryVector :: Arbitrary VVector where
@@ -21,8 +21,6 @@ instance arbitraryVector :: Arbitrary VVector where
 instance arbitraryUnitVector :: Arbitrary UVector where
   arbitrary = do (V v) <- arbitrary
                  return $ UV $ normalize v
-instance arbitraryFunction :: Arbitrary FFunction where
-  arbitrary = F <$> arbitrary
 instance arbitraryVFVector :: Arbitrary VFVector where
   arbitrary = do (F x) <- arbitrary
                  (F y) <- arbitrary

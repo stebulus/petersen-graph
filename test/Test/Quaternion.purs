@@ -9,12 +9,12 @@ import Test.QuickCheck.Data.ApproxNumber ((=~=))
 
 import Quaternion
 import qualified Vector as V
+import Test.Function
 import Test.Vector (VVector(..), UVector(..))
 import qualified Test.Vector as TV
 
 newtype AQuaternion = A (Quaternion Number)
 newtype UQuaternion = U (UnitQuaternion Number)
-newtype FFunction = F (Number -> Number)
 newtype QFQuaternion = QF (Quaternion (Number -> Number))
 
 instance arbitraryQuaternion :: Arbitrary AQuaternion where
@@ -26,8 +26,6 @@ instance arbitraryQuaternion :: Arbitrary AQuaternion where
 instance arbitraryUnitQuaternion :: Arbitrary UQuaternion where
   arbitrary = do (A q) <- arbitrary
                  return $ U $ normalize q
-instance arbitraryFunction :: Arbitrary FFunction where
-  arbitrary = F <$> arbitrary
 instance arbitraryQFQuaternion :: Arbitrary QFQuaternion where
   arbitrary = do (F r) <- arbitrary
                  (F i) <- arbitrary
