@@ -9,7 +9,7 @@
     width: 100%;
     stroke-width: 0.01;
   }
-  #edges > polyline {
+  #edges > line {
     fill: transparent;
     stroke: black;
     stroke-linecap: round;
@@ -23,7 +23,7 @@
   #world.dragging:hover { cursor: grabbing; }
   #drag-me {
     font-family: sans;
-    font-size: 0.1px;
+    font-size: 0.17px;
     transition-property: visibility, opacity;
     transition-duration: 2s;
   }
@@ -32,10 +32,10 @@
     visibility: hidden;
   }
 </style>
-<svg viewBox='-1.1 -1.1 2.2 2.2' id='petersen-graph'>
+<svg viewBox='-1.9 -1.9 3.8 3.8' id='petersen-graph'>
 <text id='drag-me' text-anchor='middle' x='0' y='0'></text>
 <g id='edges'></g>
-<circle id='world' cx='0' cy='0' r='1'></circle>
+<circle id='world' cx='0' cy='0'></circle>
 </svg>
 <script src='petersen-graph.js'></script>
 <p style='position: fixed; right: 1em; bottom: 0;'>

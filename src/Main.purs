@@ -3,12 +3,14 @@ module Main where
 import Control.Monad.Eff (Eff())
 import Control.Monad.Eff.Console (CONSOLE())
 import Control.Monad.Eff.Exception (EXCEPTION())
+import Data.Array (nubBy, zipWith)
 import Data.Foldable (intercalate, mconcat)
 import Data.Functor.Contravariant (cmap)
 import Data.List.Lazy (fromList, iterate, take)
 import Data.Maybe (Maybe(Just,Nothing))
 import Data.Monoid (Monoid)
 import Data.Traversable (for)
+import Data.Tuple (fst, snd, Tuple(Tuple))
 import DOM (DOM())
 import DOM.Event.Event (preventDefault)
 import DOM.Event.EventTarget (addEventListener, eventListener, removeEventListener)
@@ -26,6 +28,7 @@ import Prelude
 
 import DOMExtra
 import LogErrors
+import Phi
 import Quaternion (axisAngle, oneU, rotate, rotater, UnitQuaternion())
 import Radians hiding (scale)
 import Screen
@@ -40,12 +43,13 @@ main = void $ logErrors $ do
   g <- mustGetElementById (ElementId "edges") doc'
   svg <- mustGetElementById (ElementId "petersen-graph") doc'
   world <- mustGetElementById (ElementId "world") doc'
-  view <- mconcat <$> for polylines \pts -> do
-    elem <- createElementNS svgns "polyline" (htmlDocumentToDocument doc)
+  setAttribute "r" (show (sqrt 3.0)) world
+  view <- mconcat <$> for petersenEdges \(Edge u v) -> do
+    elem <- createElementNS svgns "line" (htmlDocumentToDocument doc)
     appendChild (elementToNode elem) (elementToNode g)
-    return (rotatedPolyline elem pts)
-  runView view oneU
-  installDragHandlers svg world view oneU
+    return (rotatedLine elem (fromPhiInt <$> u) (fromPhiInt <$> v))
+  runView view initialRotation
+  installDragHandlers svg world view initialRotation
   dragme <- mustGetElementById (ElementId "drag-me") doc'
   let hideDragMe = eventListener \evt -> do
         setAttribute "class" "dragged" dragme
@@ -53,25 +57,43 @@ main = void $ logErrors $ do
   addEventListener mousedown hideDragMe false (elementToEventTarget world)
   setTextContent "drag me" (elementToNode dragme)
 
-polylines :: Array (Array (Vector Number))
-polylines = flip map rots \rot -> map (rotate rot) polyline
-  where rots = fromList $ take 5 $ iterate (fifth <>) oneU
-        polyline = [ rotate fifth top1
-                   , top1
-                   , antitop1
-                   , rotate (fifth <> fifth) antitop1
-                   ]
-        fifth = axisAngle unitZ (Radians (2.0 * pi/5.0))
-        inradius = sqrt $ (5.0 + 2.0*(sqrt 5.0))/15.0
-        faceCircumradius = sqrt (1.0 - inradius*inradius)
-        top1 = fromCylindrical { rho: faceCircumradius
-                               , phi: Radians (-pi/2.0)
-                               , z: inradius
-                               }
-        oppTop1 = rotate (fifth <> fifth) top1
-        oppTop2 = rotate fifth oppTop1
-        q = rotater (normalize top1) (normalize (oppTop1 ++ oppTop2))
-        antitop1 = rotate (q <> q) top1
+initialRotation :: UnitQuaternion Number
+initialRotation = ninety <> rotater unitZ centre
+  where centre = normalize (fromPhiInt <$> mconcat face)
+        face = [ vector one one one
+               , vector zero (phi - one) phi
+               , vector zero (one - phi) phi
+               , vector one (negate one) one
+               , vector phi zero (phi - one)
+               ]
+        ninety = axisAngle unitZ (Radians (pi/2.0))
+
+data Edge a = Edge (Vector a) (Vector a)
+
+petersenEdges :: forall a. (Eq a, Ring a) => Array (Edge (Phi a))
+petersenEdges = nubBy edgeEquiv dodecahedronEdges
+  where edgeEquiv (Edge u1 u2) (Edge v1 v2) = equiv u1 v1 && equiv u2 v2
+        equiv u v = u == v || u == (negate <$> v)
+
+dodecahedronEdges :: forall a. (Ring a) => Array (Edge (Phi a))
+dodecahedronEdges = cornerEdges ++ faceEdges
+  where cornerEdges = do mask <- vector <$> bools <*> bools <*> bools
+                         let corner = negateSome mask baseCorner
+                         face <- cycles <*> pure baseFace
+                         return (Edge corner (negateSome mask face))
+        faceEdges = do bool <- bools
+                       let v1 = negateSome (vector false false bool) baseFace
+                       let v2 = negateSome (vector false true bool) baseFace
+                       cycle <- cycles
+                       return (Edge (cycle v1) (cycle v2))
+        baseCorner = vector one one one
+        baseFace = vector zero (phi - one) phi
+        cycle1 (Vector v) = vector v.y v.z v.x
+        cycles :: Array (Vector (Phi a) -> Vector (Phi a))
+        cycles = [id, cycle1, cycle1 <<< cycle1]
+        bools = [true, false]
+        negateSome mask v = negateIf <$> mask <*> v
+        negateIf flag x = if flag then negate x else x
 
 installDragHandlers :: forall e. Element -> Element
                     -> View (dom :: DOM | e) (UnitQuaternion Number)
@@ -102,16 +124,19 @@ installDragHandlers svg target view initrot =
                      removeEventListener mousedown down false target'
   in addEventListener mousedown down false target'
 
-rotatedPolyline :: forall e. Element -> Array (Vector Number)
-                -> View (dom :: DOM | e) (UnitQuaternion Number)
-rotatedPolyline elem pts =
-  cmap (\u -> map (toScreen <<< rotate u) pts)
-       (polylineView elem)
+rotatedLine :: forall e. Element -> Vector Number -> Vector Number
+            -> View (dom :: DOM | e) (UnitQuaternion Number)
+rotatedLine elem p q =
+  cmap (\u -> let f = toScreen <<< rotate u in Tuple (f p) (f q))
+       (lineView elem)
 
-polylineView :: forall e. Element -> View (dom :: DOM | e) (Array Screen)
-polylineView elem =
-  cmap (\pts -> intercalate "," $ map show $ pts >>= \pt -> [pt.u, pt.v])
-       (attributeView elem "points")
+lineView :: forall e. Element -> View (dom :: DOM | e) (Tuple Screen Screen)
+lineView elem = mconcat [ f "x1" \t -> (fst t).u
+                        , f "y1" \t -> (fst t).v
+                        , f "x2" \t -> (snd t).u
+                        , f "y2" \t -> (snd t).v
+                        ]
+  where f attr get = cmap (show <<< get) (attributeView elem attr)
 
 toScreen :: Vector Number -> Screen
 toScreen (Vector pt) = { u: t * pt.x
