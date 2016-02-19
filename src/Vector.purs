@@ -18,6 +18,13 @@ instance showVector :: (Show a) => Show (Vector a) where
                         ++ ", z: " ++ show v.z
                         ++ " }"
 
+instance functorVector :: Functor Vector where
+  map f (Vector v) = Vector { x: f v.x, y: f v.y, z: f v.z }
+instance applyVector :: Apply Vector where
+  apply (Vector f) (Vector a) = Vector { x: f.x a.x, y: f.y a.y, z: f.z a.z }
+instance applicativeVector :: Applicative Vector where
+  pure a = Vector { x: a, y: a, z: a }
+
 instance semigroupVector :: (Semiring a) => Semigroup (Vector a) where
   append (Vector u) (Vector v) =
     Vector { x: u.x + v.x
