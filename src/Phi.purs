@@ -27,11 +27,17 @@ instance showPhi :: (Show a) => Show (Phi a) where
   show (Phi s) = "Phi { a: " ++ show s.a ++ ", b: " ++ show s.b ++ " }"
 
 instance functorPhi :: Functor Phi where
-  map f (Phi s) = Phi { a: f s.a, b: f s.b }
+  map = apply <<< pure
+
+instance applyPhi :: Apply Phi where
+  apply (Phi f) (Phi x) = Phi { a: f.a x.a, b: f.b x.b }
+
+instance applicativePhi :: Applicative Phi where
+  pure x = Phi { a: x, b: x }
 
 instance semiringPhi :: (Semiring a) => Semiring (Phi a) where
-  add (Phi s) (Phi t) = Phi { a: s.a+t.a, b: s.b+t.b }
-  zero = Phi { a: zero, b: zero }
+  add s t = add <$> s <*> t
+  zero = pure zero
   mul (Phi s) (Phi t) = Phi { a: s.a*t.a + bb
                             , b: s.a*t.b + s.b*t.a + bb
                             }
@@ -39,4 +45,4 @@ instance semiringPhi :: (Semiring a) => Semiring (Phi a) where
   one = Phi { a: one, b: zero }
 
 instance ringPhi :: (Ring a) => Ring (Phi a) where
-  sub (Phi s) (Phi t) = Phi { a: s.a-t.a, b: s.b-t.b }
+  sub s t = sub <$> s <*> t
