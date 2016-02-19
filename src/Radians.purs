@@ -8,6 +8,7 @@ newtype Radians = Radians Number
 
 instance semigroupRadians :: Semigroup Radians where
   append (Radians a) (Radians b) = Radians (a+b)
+
 instance monoidRadians :: Monoid Radians where
   mempty = Radians 0.0
 

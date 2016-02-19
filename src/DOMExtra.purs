@@ -15,6 +15,8 @@ import Prelude
 
 import View
 
+-- | Miscellaneous utilities for dealing with HTML.
+
 svgns :: Nullable String
 svgns = toNullable (Just "http://www.w3.org/2000/svg")
 

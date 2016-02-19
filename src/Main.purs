@@ -57,23 +57,24 @@ main = void $ logErrors $ do
   addEventListener mousedown hideDragMe false (elementToEventTarget world)
   setTextContent "drag me" (elementToNode dragme)
 
-initialRotation :: UnitQuaternion Number
-initialRotation = ninety <> rotater unitZ centre
-  where centre = normalize (fromPhiInt <$> mconcat face)
-        face = [ vector one one one
-               , vector zero (phi - one) phi
-               , vector zero (one - phi) phi
-               , vector one (negate one) one
-               , vector phi zero (phi - one)
-               ]
-        ninety = axisAngle unitZ (Radians (pi/2.0))
-
 data Edge a = Edge (Vector a) (Vector a)
+
+-- | Inscribe a regular dodecahedron in a sphere, then identify
+-- | opposite points (turning the sphere into the projective plane);
+-- | the edge graph of the dodecahedron becomes the Petersen graph.
 
 petersenEdges :: forall a. (Eq a, Ring a) => Array (Edge (Phi a))
 petersenEdges = nubBy edgeEquiv dodecahedronEdges
   where edgeEquiv (Edge u1 u2) (Edge v1 v2) = equiv u1 v1 && equiv u2 v2
         equiv u v = u == v || u == (negate <$> v)
+
+-- | Construct a regular dodecahedron circumscribed around a cube,
+-- | following Euclid's method of adding a small tent-shaped polyhedron
+-- | to each face of the cube.  Each vertex of the cube is also a
+-- | vertex of the dodecahedron; each tent contributes two additional
+-- | vertices.  Each tent vertex is joined to its tent sibling and
+-- | to two of the cube's vertices.
+-- | http://aleph0.clarku.edu/~djoyce/elements/bookXIII/propXIII17.html
 
 dodecahedronEdges :: forall a. (Ring a) => Array (Edge (Phi a))
 dodecahedronEdges = cornerEdges ++ faceEdges
@@ -86,14 +87,51 @@ dodecahedronEdges = cornerEdges ++ faceEdges
                        let v2 = negateSome (vector false true bool) baseFace
                        cycle <- cycles
                        return (Edge (cycle v1) (cycle v2))
-        baseCorner = vector one one one
-        baseFace = vector zero (phi - one) phi
+        baseCorner = vector one one one  -- cube vertex
+        baseFace = vector zero (phi - one) phi  -- tent vertex
         cycle1 (Vector v) = vector v.y v.z v.x
         cycles :: Array (Vector (Phi a) -> Vector (Phi a))
         cycles = [id, cycle1, cycle1 <<< cycle1]
         bools = [true, false]
         negateSome mask v = negateIf <$> mask <*> v
         negateIf flag x = if flag then negate x else x
+
+-- | Conversion between 3d coordinates and screen coordinates.
+-- | Stereographically project the `z >= 0` half of R^3 to via the
+-- | south pole to the `z = 0` plane.  Likewise project the `z <= 0`
+-- | half via the north pole, but also negate the resulting point.
+-- | Net effect: The unit circle models the projective plane.
+
+toScreen :: Vector Number -> Screen
+toScreen (Vector pt) = { u: t * pt.x
+                       , v: t * pt.y
+                       }
+  where t = 1.0/(pt.z + if pt.z >= 0.0 then 1.0 else -1.0)
+
+fromScreen :: Screen -> UnitVector Number
+fromScreen s = normalize $ vector (2.0*s.u)
+                                  (2.0*s.v)
+                                  (1.0 - s.u*s.u - s.v*s.v)
+
+rotatedLine :: forall e. Element -> Vector Number -> Vector Number
+            -> View (dom :: DOM | e) (UnitQuaternion Number)
+rotatedLine elem p q =
+  cmap (\u -> let f = toScreen <<< rotate u in Tuple (f p) (f q))
+       (lineView elem)
+
+lineView :: forall e. Element -> View (dom :: DOM | e) (Tuple Screen Screen)
+lineView elem = mconcat [ f "x1" \t -> (fst t).u
+                        , f "y1" \t -> (fst t).v
+                        , f "x2" \t -> (snd t).u
+                        , f "y2" \t -> (snd t).v
+                        ]
+  where f attr get = cmap (show <<< get) (attributeView elem attr)
+
+-- | Install event handlers to rotate the figure in response to
+-- | dragging, as follows.  Convert the start and end of the drag
+-- | (screen points) to points on the unit sphere; rotate on an axis
+-- | perpendicular to the great circle between those two points,
+-- | by an angle sufficient to move the start to the end.
 
 installDragHandlers :: forall e. Element -> Element
                     -> View (dom :: DOM | e) (UnitQuaternion Number)
@@ -124,27 +162,16 @@ installDragHandlers svg target view initrot =
                      removeEventListener mousedown down false target'
   in addEventListener mousedown down false target'
 
-rotatedLine :: forall e. Element -> Vector Number -> Vector Number
-            -> View (dom :: DOM | e) (UnitQuaternion Number)
-rotatedLine elem p q =
-  cmap (\u -> let f = toScreen <<< rotate u in Tuple (f p) (f q))
-       (lineView elem)
+-- | Initial rotation of the figure: a face of the dodecahedron
+-- | centred, and the resulting star pointing up.
 
-lineView :: forall e. Element -> View (dom :: DOM | e) (Tuple Screen Screen)
-lineView elem = mconcat [ f "x1" \t -> (fst t).u
-                        , f "y1" \t -> (fst t).v
-                        , f "x2" \t -> (snd t).u
-                        , f "y2" \t -> (snd t).v
-                        ]
-  where f attr get = cmap (show <<< get) (attributeView elem attr)
-
-toScreen :: Vector Number -> Screen
-toScreen (Vector pt) = { u: t * pt.x
-                       , v: t * pt.y
-                       }
-  where t = 1.0/(pt.z + if pt.z >= 0.0 then 1.0 else -1.0)
-
-fromScreen :: Screen -> UnitVector Number
-fromScreen s = normalize $ vector (2.0*s.u)
-                                  (2.0*s.v)
-                                  (1.0 - s.u*s.u - s.v*s.v)
+initialRotation :: UnitQuaternion Number
+initialRotation = ninety <> rotater unitZ centre
+  where centre = normalize (fromPhiInt <$> mconcat face)
+        face = [ vector one one one
+               , vector zero (phi - one) phi
+               , vector zero (one - phi) phi
+               , vector one (negate one) one
+               , vector phi zero (phi - one)
+               ]
+        ninety = axisAngle unitZ (Radians (pi/2.0))

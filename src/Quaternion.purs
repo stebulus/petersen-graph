@@ -8,9 +8,11 @@ import qualified Radians as R
 import qualified Vector as V
 
 data Quaternion a = Quaternion { r :: a, i :: a, j :: a, k :: a }
+
 instance eqQuaternion :: (Eq a) => Eq (Quaternion a) where
   eq (Quaternion a) (Quaternion b) =
     a.r == b.r && a.i == b.i && a.j == b.j && a.k == b.k
+
 instance showQuaternion :: (Show a) => Show (Quaternion a) where
   show (Quaternion q) = "Quaternion { r: " ++ show q.r
                                ++ " , i: " ++ show q.i
@@ -62,6 +64,15 @@ normsq (Quaternion q) = q.r*q.r + q.i*q.i + q.j*q.j + q.k*q.k
 norm :: Quaternion Number -> Number
 norm = sqrt <<< normsq
 
+fromVector :: forall a. (Semiring a) => V.Vector a -> Quaternion a
+fromVector (V.Vector p) = Quaternion { r: zero, i: p.x, j: p.y, k: p.z }
+
+scalarPart :: forall a. Quaternion a -> a
+scalarPart (Quaternion q) = q.r
+
+vectorPart :: forall a. Quaternion a -> V.Vector a
+vectorPart (Quaternion q) = V.vector q.i q.j q.k
+
 newtype UnitQuaternion a = UnitQuaternion (Quaternion a)
 
 oneU :: forall a. (Ring a) => UnitQuaternion a
@@ -72,6 +83,7 @@ normalize q = UnitQuaternion (scale (1.0/norm q) q)
 
 instance semigroupUnitQuaternion :: (Ring a) => Semigroup (UnitQuaternion a) where
   append (UnitQuaternion u) (UnitQuaternion v) = UnitQuaternion (u*v)
+
 instance monoidUnitQuaternion :: (Ring a) => Monoid (UnitQuaternion a) where
   mempty = oneU
 
@@ -81,15 +93,6 @@ rotate (UnitQuaternion u) p = vectorPart (u * (fromVector p) * (conjugate u))
 rotater :: V.UnitVector Number -> V.UnitVector Number -> UnitQuaternion Number
 rotater (V.UnitVector from) (V.UnitVector to) =
   normalize (one - (fromVector to)*(fromVector from))
-
-fromVector :: forall a. (Semiring a) => V.Vector a -> Quaternion a
-fromVector (V.Vector p) = Quaternion { r: zero, i: p.x, j: p.y, k: p.z }
-
-scalarPart :: forall a. Quaternion a -> a
-scalarPart (Quaternion q) = q.r
-
-vectorPart :: forall a. Quaternion a -> V.Vector a
-vectorPart (Quaternion q) = V.vector q.i q.j q.k
 
 axisAngle :: V.UnitVector Number -> R.Radians -> UnitQuaternion Number
 axisAngle (V.UnitVector (V.Vector axis)) angle =

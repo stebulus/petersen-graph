@@ -4,6 +4,8 @@ import Data.Int (toNumber)
 import Math (sqrt)
 import Prelude
 
+-- | Numbers of the form `a + b*phi`
+
 data Phi a = Phi { a :: a, b :: a }
 
 phi :: forall a. (Semiring a) => Phi a
