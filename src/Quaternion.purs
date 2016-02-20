@@ -1,7 +1,7 @@
 module Quaternion where
 
 import Data.Monoid (Monoid)
-import Math (pow, sqrt)
+import Math (sqrt)
 import Prelude
 
 import qualified Radians as R
