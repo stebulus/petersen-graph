@@ -12,3 +12,11 @@ hemisphere to the same points as their antipodes.
 
 Controller: Dragging one point to another on the screen causes a
 corresponding rotation of the sphere (represented as unit quaternions).
+
+To build:
+
+    bower install
+    pulp test
+    pulp build -O -t petersen-graph.js
+
+Then view `index.html`.
